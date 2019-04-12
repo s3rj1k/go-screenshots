@@ -209,10 +209,10 @@ func (c *Config) CDPScreenshot(ctx context.Context) ([]byte, error) {
 		SetFormat(format).
 		SetClip(
 			page.Viewport{
-				X:      0,
-				Y:      0,
-				Width:  width,
-				Height: height + float64(c.BottomPadding),
+				X:      0 + float64(c.PaddingLeft),
+				Y:      0 + float64(c.PaddingTop),
+				Width:  width + float64(c.PaddingRight),
+				Height: height + float64(c.PaddingBottom),
 				Scale:  1,
 			},
 		)

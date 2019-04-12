@@ -6,6 +6,7 @@ import (
 	jseg "github.com/garyhouston/jpegsegs"
 )
 
+// addCOMtoJPEG - adds comment to JPEG stream.
 func addCOMtoJPEG(in []byte, comment []byte) ([]byte, error) {
 
 	reader := bytes.NewReader(in)
