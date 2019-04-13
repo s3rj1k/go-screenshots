@@ -79,8 +79,11 @@ func (c *Config) Screenshot() ([]byte, error) {
 		fmt.Sprintf("--user-agent=%s", c.UserAgent),
 		fmt.Sprintf("--lang=%s", c.AcceptLanguage),
 		fmt.Sprintf("--remote-debugging-port=%s", strconv.Itoa(c.Port)),
-		fmt.Sprintf("--user-data-dir=%s", c.ProfileDir),
 		fmt.Sprintf("--window-size=%d,%d", c.WindowWidth, c.WindowHight),
+	}
+
+	if len(c.ProfileDir) > 0 {
+		flags = append(flags, fmt.Sprintf("--user-data-dir=%s", c.ProfileDir))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.Deadline)
