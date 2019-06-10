@@ -19,7 +19,6 @@ import (
 
 // CDPScreenshot - low-level function that creates screenshot for URL using CDP.
 func (c *Config) CDPScreenshot(ctx context.Context) ([]byte, error) {
-
 	var width, height float64
 	var format string
 
@@ -31,14 +30,18 @@ func (c *Config) CDPScreenshot(ctx context.Context) ([]byte, error) {
 
 	devt := devtool.New(fmt.Sprintf("http://%s:%s", c.Host, strconv.Itoa(c.Port)))
 
+LOOP:
 	for {
-		var err error
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			time.Sleep(100 * time.Millisecond)
 
-		time.Sleep(100 * time.Millisecond)
-
-		_, err = devt.List(ctx)
-		if err == nil {
-			break
+			_, err := devt.List(ctx)
+			if err == nil {
+				break LOOP
+			}
 		}
 	}
 

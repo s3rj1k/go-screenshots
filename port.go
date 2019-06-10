@@ -6,7 +6,6 @@ import (
 
 // GetFreePort - returns free TCP port.
 func GetFreePort() (int, error) {
-
 	addr, err := net.ResolveTCPAddr("tcp", "[::]:0")
 	if err != nil {
 		return 0, err
@@ -17,9 +16,9 @@ func GetFreePort() (int, error) {
 		return 0, err
 	}
 
-	defer func(l *net.TCPListener) {
-		_ = l.Close()
-	}(l)
+	port := l.Addr().(*net.TCPAddr).Port
 
-	return l.Addr().(*net.TCPAddr).Port, nil
+	l.Close()
+
+	return port, nil
 }
