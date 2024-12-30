@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Make screenshot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fomantic-ui/2.9.3/semantic.min.css">
+    <style media="screen" type="text/css">
+      .ui.form .field > label {
+        margin: 0 !important;
+      }
+      .ui.sticky.fixed {
+        width: 100% !important;
+        border-radius: 0 !important;
+      }
+      .ui.segment {
+        margin: 0 !important;
+      }
+      #result {
+        width: 100%;
+        text-align:center;
+      }
+    </style>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/fomantic-ui/2.9.3/semantic.min.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function(){
+        var frm = $('#screenshot_form');
+        $('.sticky')
+          .visibility({
+            type: 'fixed',
+        });
+        frm.submit(function (e) {
+            $('#result').html('<div class="ui active dimmer"><div class="ui text loader">Loading</div></div>');
+            e.preventDefault();
+            $.ajax({
+                type: frm.attr('method'),
+                url: frm.attr('action'),
+                data: frm.serialize(),
+                success: function (data, status) {
+                    $('#result').html('<img src="data:image/png;base64,' + data + '"/>');
+                },
+                error: function (data, status) {
+                    $('#result').html('<h1>500 Internal Server Error</h1>');
+                },
+            });
+        });
+        $('.ui.dropdown')
+          .dropdown({
+            allowAdditions: true
+          });
+      });
+    </script>
+  </head>
+  <body>
+    <form class="ui form segment sticky" method="POST" action="/screenshot" id="screenshot_form" accept-charset="UTF-8">
+      <div class="ui form">
+        <div class="ui fields">
+          <div class="eight wide field">
+            <label>URL</label>
+            <input type="url" name="url" placeholder="https://google.com" required>
+          </div>
+          <div class="two wide field input">
+            <label>Wait time</label>
+            <input type="number" name="time-wait" min="1" max="600" value="5" size="3" required>
+          </div>
+          <div class="two wide field input">
+            <label>Viewport width</label>
+            <input type="number" name="viewport-width" min="1" max="4096" value="1920" size="4" required>
+          </div>
+          <div class="two wide field input">
+            <label>Viewport height</label>
+            <input type="number" name="viewport-height" min="1" max="2160" value="1080" size="4" required>
+          </div>
+          <div class="two wide field">
+            <label>Fullpage</label>
+            <select class="ui fluid dropdown" name="fullpage">
+              <option value="true" selected>Fullpage</option>
+              <option value="false">Only viewport</option>
+            </select>
+          </div>
+          <div class="two wide field">
+            <label>User Agent</label>
+            <select class="ui fluid dropdown" name="user-agent">
+              <option value="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36" selected>Desktop</option>
+              <option value="Mozilla/5.0 (Linux; Android 4.0.4; Galaxy Nexus Build/IMM76B) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.133 Mobile Safari/535.19">Mobile</option>
+            </select>
+          </div>
+          <div class="two wide field">
+            <label>Language</label>
+            <select class="ui fluid dropdown" name="accept-language">
+              <option value="en-US,en">en-US</option>
+              <option value="en-GB,en" selected>en-GB</option>
+              <option value="ru-RU,ru">ru-RU</option>
+              <option value="uk-UA,uk">uk-UA</option>
+            </select>
+          </div>
+          <div class="action input">
+            <br>
+            <button class="ui button teal">Screenshot</button>
+          </div>
+        </div>
+      </div>
+    </form>
+    <div id="result"><!-- For server results --></div>
+  </body>
+</html>

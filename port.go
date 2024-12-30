@@ -1,6 +1,7 @@
 package screenshot
 
 import (
+	"errors"
 	"net"
 )
 
@@ -16,9 +17,12 @@ func GetFreePort() (int, error) {
 		return 0, err
 	}
 
-	port := l.Addr().(*net.TCPAddr).Port
+	defer l.Close()
 
-	l.Close()
+	addr, ok := l.Addr().(*net.TCPAddr)
+	if !ok {
+		return 0, errors.New("unexpected data type from TCP listener")
+	}
 
-	return port, nil
+	return addr.Port, nil
 }

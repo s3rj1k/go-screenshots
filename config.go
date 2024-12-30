@@ -6,33 +6,32 @@ import (
 
 // Config - options for URL screenshot function.
 type Config struct {
-	CMD  string
-	Host string
+	CMD        string
+	Host       string
+	ProfileDir string
 
 	URL            string
 	AcceptLanguage string
 	UserAgent      string
-	ProfileDir     string
+
+	Flags []string
 
 	FullPage bool
-	IsJPEG   bool
 
 	RandomProfileDir bool
 
 	Port int
 
-	WindowWidth int
-	WindowHight int
+	WindowWidth  int
+	WindowHeight int
 
 	PaddingTop    int
 	PaddingBottom int
 	PaddingLeft   int
 	PaddingRight  int
 
-	JpegQuality int
-
-	Wait     time.Duration
-	Deadline time.Duration
+	Wait            time.Duration
+	ContextDeadline time.Duration
 }
 
 // DefaultConfig - creates structure with default values.
@@ -41,28 +40,41 @@ func DefaultConfig() Config {
 		CMD:  "/usr/bin/google-chrome-stable",
 		Host: "127.0.0.1",
 
-		Port: 0,
+		RandomProfileDir: true,
 
-		WindowWidth: 1920,
-		WindowHight: 1080,
-
-		PaddingTop:    0,
-		PaddingBottom: 0,
-		PaddingLeft:   0,
-		PaddingRight:  0,
-
-		JpegQuality: 95,
+		WindowWidth:  1920,
+		WindowHeight: 1080,
 
 		URL:            "https://google.com",
 		AcceptLanguage: "*",
-		UserAgent:      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
 
-		Wait:     5 * time.Second,
-		Deadline: 300 * time.Second,
+		Wait:            5 * time.Second,
+		ContextDeadline: 300 * time.Second,
 
-		RandomProfileDir: true,
-
-		FullPage: true,
-		IsJPEG:   false,
+		// https://peter.sh/experiments/chromium-command-line-switches/
+		Flags: []string{
+			"--autoplay-policy=document-user-activation-required",
+			"--disable-client-side-phishing-detection",
+			"--disable-cloud-import",
+			"--disable-default-apps",
+			"--disable-dinosaur-easter-egg",
+			"--disable-gpu",
+			"--disable-logging",
+			"--disable-new-tab-first-run",
+			"--disable-offer-upload-credit-cards",
+			"--disable-signin-promo",
+			"--disable-sync",
+			"--disable-translate",
+			"--headless",
+			"--hide-scrollbars",
+			"--ignore-certificate-errors",
+			"--mute-audio",
+			"--no-default-browser-check",
+			"--no-first-run",
+			"--no-pings",
+			"--no-referrers",
+			"--no-sandbox",
+			"--password-store=basic",
+		},
 	}
 }

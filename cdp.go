@@ -2,7 +2,6 @@ package screenshot
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strconv"
@@ -10,8 +9,9 @@ import (
 
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
-	"github.com/mafredri/cdp/protocol/css"
+	"github.com/mafredri/cdp/protocol/dom"
 	"github.com/mafredri/cdp/protocol/emulation"
+	"github.com/mafredri/cdp/protocol/network"
 	"github.com/mafredri/cdp/protocol/page"
 	"github.com/mafredri/cdp/protocol/security"
 	"github.com/mafredri/cdp/rpcc"
@@ -19,14 +19,10 @@ import (
 
 // CDPScreenshot - low-level function that creates screenshot for URL using CDP.
 func (c *Config) CDPScreenshot(ctx context.Context) ([]byte, error) {
-	var width, height float64
-	var format string
-
-	if c.IsJPEG {
-		format = "jpeg"
-	} else {
-		format = "png"
-	}
+	var (
+		width, height float64
+		format        string = "png"
+	)
 
 	devt := devtool.New(fmt.Sprintf("http://%s:%s", c.Host, strconv.Itoa(c.Port)))
 
@@ -60,49 +56,30 @@ LOOP:
 	cdp := cdp.NewClient(conn)
 	defer cdp.Browser.Close(ctx)
 
-	err = cdp.Debugger.Disable(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to disable Debugger for URL='%s': %s", c.URL, err.Error())
+	// disable unused services
+	services := []struct {
+		name string
+		fn   func(context.Context) error
+	}{
+		{"Debugger", cdp.Debugger.Disable},
+		{"HeapProfiler", cdp.HeapProfiler.Disable},
+		{"Inspector", cdp.Inspector.Disable},
+		{"LayerTree", cdp.LayerTree.Disable},
+		{"Log", cdp.Log.Disable},
+		{"Overlay", cdp.Overlay.Disable},
+		{"Performance", cdp.Performance.Disable},
+		{"Profiler", cdp.Profiler.Disable},
 	}
 
-	err = cdp.HeapProfiler.Disable(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to disable Heap Profiler for URL='%s': %s", c.URL, err.Error())
+	for _, service := range services {
+		if err := service.fn(ctx); err != nil {
+			return nil, fmt.Errorf("failed to disable %s for URL='%s': %s", service.name, c.URL, err.Error())
+		}
 	}
 
-	err = cdp.Inspector.Disable(ctx)
+	err = cdp.Network.Enable(ctx, &network.EnableArgs{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to disable Inspector for URL='%s': %s", c.URL, err.Error())
-	}
-
-	err = cdp.LayerTree.Disable(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to disable Layer Tree for URL='%s': %s", c.URL, err.Error())
-	}
-
-	err = cdp.Log.Disable(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to disable Log for URL='%s': %s", c.URL, err.Error())
-	}
-
-	err = cdp.Overlay.Disable(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to disable Overlay for URL='%s': %s", c.URL, err.Error())
-	}
-
-	err = cdp.Performance.Disable(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to disable Performance for URL='%s': %s", c.URL, err.Error())
-	}
-
-	err = cdp.Profiler.Disable(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to disable Profiler for URL='%s': %s", c.URL, err.Error())
-	}
-
-	err = cdp.Network.Disable(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to disable Network for URL='%s': %s", c.URL, err.Error())
+		return nil, fmt.Errorf("failed to enable network events for URL='%s': %s", c.URL, err.Error())
 	}
 
 	_ = page.NewSetAdBlockingEnabledArgs(true)
@@ -118,7 +95,7 @@ LOOP:
 		return nil, fmt.Errorf("failed to enable Page events for URL='%s': %s", c.URL, err.Error())
 	}
 
-	err = cdp.DOM.Enable(ctx)
+	err = cdp.DOM.Enable(ctx, &dom.EnableArgs{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to enable DOM events for URL='%s': %s", c.URL, err.Error())
 	}
@@ -133,21 +110,19 @@ LOOP:
 		return nil, fmt.Errorf("failed to clear Device Metrics Override for URL='%s': %s", c.URL, err.Error())
 	}
 
-	err = cdp.Emulation.SetDeviceMetricsOverride(ctx,
-		&emulation.SetDeviceMetricsOverrideArgs{
-			Width:             c.WindowWidth,
-			Height:            c.WindowHight,
-			DeviceScaleFactor: 1,
-			Mobile:            false})
+	err = cdp.Emulation.SetDeviceMetricsOverride(ctx, &emulation.SetDeviceMetricsOverrideArgs{
+		Width:             c.WindowWidth,
+		Height:            c.WindowHeight,
+		DeviceScaleFactor: 1,
+		Mobile:            false,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set Device Metrics Overrides for URL='%s': %s", c.URL, err.Error())
 	}
 
-	err = cdp.Security.SetIgnoreCertificateErrors(ctx,
-		&security.SetIgnoreCertificateErrorsArgs{
-			Ignore: true,
-		},
-	)
+	err = cdp.Security.SetIgnoreCertificateErrors(ctx, &security.SetIgnoreCertificateErrorsArgs{
+		Ignore: true,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set Ignore Certificate errors option for URL='%s': %s", c.URL, err.Error())
 	}
@@ -183,29 +158,63 @@ LOOP:
 	}
 
 	if c.FullPage {
-		width = layout.ContentSize.Width
-		height = layout.ContentSize.Height
+		width = layout.CSSContentSize.Width
+		height = layout.CSSContentSize.Height
 	} else {
 		width = float64(c.WindowWidth)
-		height = float64(c.WindowHight)
+		height = float64(c.WindowHeight)
 	}
 
-	if layout.ContentSize.Height > layout.VisualViewport.ClientHeight {
-
-		var styleSheet *css.CreateStyleSheetReply
-
-		styleSheet, err = cdp.CSS.CreateStyleSheet(ctx, css.NewCreateStyleSheetArgs(nav.FrameID))
+	if layout.CSSContentSize.Height > layout.CSSVisualViewport.ClientHeight {
+		err = cdp.Emulation.SetDeviceMetricsOverride(ctx, &emulation.SetDeviceMetricsOverrideArgs{
+			Width:             int(layout.CSSContentSize.Width),
+			Height:            int(layout.CSSContentSize.Height),
+			DeviceScaleFactor: 1,
+			Mobile:            false,
+		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create CSS override for URL='%s': %s", c.URL, err.Error())
+			return nil, fmt.Errorf("failed to set full page device metrics for URL='%s': %s", c.URL, err.Error())
 		}
 
-		_, err = cdp.CSS.SetStyleSheetText(ctx, css.NewSetStyleSheetTextArgs(
-			styleSheet.StyleSheetID,
-			`html { height: auto !important; }`,
-		))
+		_, err = cdp.DOM.GetDocument(ctx, &dom.GetDocumentArgs{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to set CSS override for URL='%s': %s", c.URL, err.Error())
+			return nil, fmt.Errorf("failed to force layout recalculation for URL='%s': %s", c.URL, err.Error())
 		}
+	}
+
+	done := make(chan bool)
+	var lastError error
+
+	go func() {
+		defer close(done)
+
+		loadingFinished, err := cdp.Network.LoadingFinished(ctx)
+		if err != nil {
+			lastError = fmt.Errorf("failed to create loading finished listener: %v", err)
+			return
+		}
+		defer loadingFinished.Close()
+
+		if _, err := loadingFinished.Recv(); err != nil {
+			lastError = fmt.Errorf("failed waiting for network idle: %v", err)
+			return
+		}
+	}()
+
+	var timeoutChan <-chan time.Time
+	if c.Wait > 0 {
+		timeoutChan = time.After(c.Wait)
+	}
+
+	select {
+	case <-done:
+		if lastError != nil {
+			return nil, lastError
+		}
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-timeoutChan:
+		// only reached if c.Wait > 0
 	}
 
 	screenshotArgs := page.NewCaptureScreenshotArgs().
@@ -220,16 +229,6 @@ LOOP:
 			},
 		)
 
-	if c.IsJPEG {
-		screenshotArgs.SetQuality(c.JpegQuality)
-	}
-
-	if c.Wait > c.Deadline {
-		time.Sleep(c.Deadline)
-	} else {
-		time.Sleep(c.Wait)
-	}
-
 	err = cdp.Page.StopLoading(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to stop Page loading for URL='%s': %s", c.URL, err.Error())
@@ -240,18 +239,5 @@ LOOP:
 		return nil, fmt.Errorf("failed to Capture Screenshot for URL='%s': %s", c.URL, err.Error())
 	}
 
-	var image []byte
-
-	encURL := base64.StdEncoding.EncodeToString([]byte(c.URL))
-
-	if c.IsJPEG {
-		image, err = addCOMtoJPEG(scr.Data, []byte(encURL)) // consider adding time deadline here
-		if err != nil {
-			return nil, fmt.Errorf("failed to add JPEG comment section for URL='%s': %s", c.URL, err.Error())
-		}
-	} else {
-		image = scr.Data
-	}
-
-	return image, nil
+	return scr.Data, nil
 }

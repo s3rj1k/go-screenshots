@@ -3,18 +3,20 @@ package screenshot
 import (
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"time"
 )
 
-// KillByPgidAndCleanup - kills CDP process and remove randomly created profile directory.
-func (c *Config) KillByPgidAndCleanup(cmd *exec.Cmd) {
-
+// KillByPGIDAndCleanup - kills CDP process and removes randomly created profile directory.
+func (c *Config) KillByPGIDAndCleanup(cmd *exec.Cmd) {
 	if c != nil && c.RandomProfileDir {
 		_, err := os.Stat(c.ProfileDir)
 		if err == nil {
 			defer func(path string) {
-				_ = os.RemoveAll(path)
+				if strings.HasPrefix(path, os.TempDir()) {
+					_ = os.RemoveAll(path)
+				}
 			}(c.ProfileDir)
 		}
 	}
