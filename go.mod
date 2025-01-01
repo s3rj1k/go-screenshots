@@ -5,7 +5,7 @@ go 1.23.4
 require (
 	github.com/corona10/goimagehash v1.1.0
 	github.com/mafredri/cdp v0.35.0
-	golang.org/x/net v0.25.0
+	golang.org/x/net v0.33.0
 )
 
 require (
